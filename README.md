@@ -278,4 +278,275 @@ body {
         await sleep(prefersReducedMotion ? 200 : 380);
         stem.classList.add('grow');
         statusText.textContent = 'Growing stem...';
-      
+      // Interactive bloom script for the provided HTML/CSS.
+// - Enables start button when fonts are ready
+// - Runs a loading bar sequence, then fades overlay
+// - Grows stem, reveals leaves/thorns, builds calyx sepals
+// - Generates layered petals with staggered bloom animations
+// - Adds glow, rotates wrapper, shows end text
+// - Spawns falling petals (disabled under prefers-reduced-motion)
+// - Basic keyboard accessibility and cleanup
+
+(function () {
+    const startButton = document.getElementById('startButton');
+    const loadingBar = document.getElementById('loadingBar');
+    const statusText = document.getElementById('statusText');
+    const triggerOverlay = document.getElementById('triggerOverlay');
+    const ambientLight = document.getElementById('ambientLight');
+    const stem = document.getElementById('stem');
+    const thorn1 = document.getElementById('thorn1');
+    const thorn2 = document.getElementById('thorn2');
+    const leafLeft = document.getElementById('leafLeft');
+    const leafRight = document.getElementById('leafRight');
+    const calyx = document.getElementById('calyx');
+    const roseHead = document.getElementById('roseHead');
+    const roseWrapper = document.getElementById('roseWrapper');
+    const endText = document.getElementById('endText');
+    const fallingPetals = document.getElementById('fallingPetals');
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Colors classes repeated to give depth to petals
+    const petalClasses = [
+        'petal-bud',
+        'petal-core',
+        'petal-inner',
+        'petal-mid-inner',
+        'petal-mid',
+        'petal-outer',
+        'petal-blush'
+    ];
+
+    // Wait for fonts to load to avoid layout shifts; then enable the start button
+    function enableWhenReady() {
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => {
+                startButton.disabled = false;
+                statusText.textContent = 'Ready to bloom — tap to start';
+            }).catch(() => {
+                startButton.disabled = false;
+                statusText.textContent = 'Ready to bloom — tap to start';
+            });
+        } else {
+            // Fallback
+            setTimeout(() => {
+                startButton.disabled = false;
+                statusText.textContent = 'Ready to bloom — tap to start';
+            }, 800);
+        }
+    }
+
+    // Utility: sleep
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+    // Loading animation: increments the bar and updates text
+    async function runLoading() {
+        statusText.textContent = 'Compiling style...';
+        let progress = 0;
+        const start = Date.now();
+        const duration = prefersReducedMotion ? 600 : 2200; // ms
+        while (progress < 100) {
+            const elapsed = Date.now() - start;
+            progress = Math.min(100, Math.round((elapsed / duration) * 100));
+            loadingBar.style.width = progress + '%';
+            await sleep(prefersReducedMotion ? 40 : 30);
+        }
+        loadingBar.style.width = '100%';
+        statusText.textContent = 'Almost there...';
+        await sleep(prefersReducedMotion ? 120 : 600);
+    }
+
+    // Create calyx sepals
+    function buildCalyx(count = 6) {
+        calyx.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const s = document.createElement('div');
+            s.className = 'sepal';
+            const angle = (i / count) * 360 - 180 + (Math.random() * 18 - 9);
+            const delay = (i * 0.06).toFixed(2) + 's';
+            const curl = (18 + Math.random() * 12).toFixed(1) + 'deg';
+            s.style.setProperty('--sepal-angle', `${angle}deg`);
+            s.style.setProperty('--sepal-delay', delay);
+            s.style.setProperty('--sepal-curl', curl);
+            calyx.appendChild(s);
+        }
+        // reveal calyx
+        calyx.classList.add('visible');
+    }
+
+    // Generate petals and attach to roseHead
+    function buildPetals() {
+        const total = 32; // overall petals; can be adjusted
+        roseHead.querySelectorAll('.petal').forEach(n => n.remove());
+
+        for (let i = 0; i < total; i++) {
+            const p = document.createElement('div');
+            p.className = 'petal';
+            // assign color depth class by radius layer
+            const layerIndex = Math.floor((i / total) * petalClasses.length);
+            p.classList.add(petalClasses[layerIndex]);
+
+            // angle around Y for circular distribution
+            const angle = (i / total) * 360;
+            // depth (translateZ) increases for outer petals
+            const tz = 20 + (layerIndex * 18) + (Math.random() * 8 - 4);
+            const curl = 18 + layerIndex * 5 + Math.random() * 12;
+            const scale = 0.85 + (layerIndex * 0.12) + (Math.random() * 0.08);
+            const delay = (i * 0.04).toFixed(2) + 's';
+            const dur = (1.8 + layerIndex * 0.15).toFixed(2) + 's';
+
+            p.style.setProperty('--angle', `${angle}deg`);
+            p.style.setProperty('--tz', `${tz}px`);
+            p.style.setProperty('--curl', `${curl}deg`);
+            p.style.setProperty('--scale', `${scale}`);
+            p.style.setProperty('--delay', delay);
+            p.style.setProperty('--bloom-dur', dur);
+
+            // Slight random position offset (subpixel) to avoid perfect symmetry
+            p.style.transform += ` translateZ(0px)`;
+
+            // Add to rose head
+            roseHead.appendChild(p);
+        }
+    }
+
+    // Spawn falling petal
+    function spawnFallingPetal() {
+        if (prefersReducedMotion) return;
+        const p = document.createElement('div');
+        p.className = 'falling-petal';
+        // randomize size
+        const w = 10 + Math.round(Math.random() * 18);
+        const h = Math.round(w * (1.2 + Math.random() * 0.4));
+        p.style.setProperty('--fp-w', `${w}px`);
+        p.style.setProperty('--fp-h', `${h}px`);
+
+        // random colors within palette
+        const colors = [
+            ['#ad0022', '#3d0008'],
+            ['#9a001d', '#52000c'],
+            ['#bf0028', '#6d0012'],
+            ['#850018', '#350005']
+        ];
+        const c = colors[Math.floor(Math.random() * colors.length)];
+        p.style.setProperty('--fp-c1', c[0]);
+        p.style.setProperty('--fp-c2', c[1]);
+
+        // duration and delay
+        const dur = 5 + Math.random() * 6;
+        p.style.setProperty('--f-dur', `${dur}s`);
+        p.style.setProperty('--f-delay', `0s`);
+
+        // sway offsets
+        p.style.setProperty('--s1', `${Math.round(20 + Math.random() * 60)}px`);
+        p.style.setProperty('--s2', `${-Math.round(10 + Math.random() * 60)}px`);
+        p.style.setProperty('--s3', `${Math.round(10 + Math.random() * 60)}px`);
+        p.style.setProperty('--s4', `${Math.round(-10 + Math.random() * 40)}px`);
+
+        // initial position: near top center with random horizontal offset
+        const viewportW = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        const startX = (viewportW / 2) + (Math.random() * 240 - 120);
+        p.style.left = `${startX}px`;
+        p.style.top = `${-20 + Math.random() * 40}px`;
+
+        fallingPetals.appendChild(p);
+
+        // cleanup when animation ends
+        p.addEventListener('animationend', () => {
+            p.remove();
+        });
+
+        // Also remove forcibly after some time in case animationend doesn't fire
+        setTimeout(() => p.remove(), (dur + 1) * 1000);
+    }
+
+    // Master bloom sequence
+    async function bloomSequence() {
+        // ambient and overlay transition
+        ambientLight.classList.add('visible');
+        triggerOverlay.classList.add('fade-out');
+        // small pause for overlay visual
+        await sleep(prefersReducedMotion ? 200 : 380);
+
+        // grow stem
+        stem.classList.add('grow');
+        statusText.textContent = 'Growing stem...';
+        await sleep(prefersReducedMotion ? 200 : 800);
+
+        // reveal thorns and leaves
+        thorn1.style.opacity = thorn2.style.opacity = '0.75';
+        leafLeft.classList.add('visible');
+        leafRight.classList.add('visible');
+
+        statusText.textContent = 'Forming calyx...';
+        await sleep(prefersReducedMotion ? 200 : 400);
+
+        // build calyx and petals
+        buildCalyx(6);
+        buildPetals();
+
+        statusText.textContent = 'Blooming...';
+        // small pause before bloom animation kicks in
+        await sleep(prefersReducedMotion ? 120 : 260);
+
+        // reveal bloom
+        roseHead.classList.add('blooming');
+        // glow inner elements are controlled by CSS when .blooming present
+        // rotate wrapper unless reduced motion
+        if (!prefersReducedMotion) {
+            roseWrapper.classList.add('rotating');
+        }
+        // also lightly scale up the whole scene for dramatic effect
+        roseWrapper.style.transition = 'transform 1.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        roseWrapper.style.transform = 'rotateX(-22deg) rotateY(0deg)';
+
+        // after the petals animate in, show end text and begin falling petals
+        await sleep(prefersReducedMotion ? 400 : 1800);
+
+        endText.classList.add('visible');
+        statusText.textContent = 'Done';
+
+        // spawn falling petals periodically
+        if (!prefersReducedMotion) {
+            const spawnInterval = 1100; // ms
+            const maxSpawns = 10;
+            let spawns = 0;
+            const intervalId = setInterval(() => {
+                spawnFallingPetal();
+                spawns++;
+                if (spawns > maxSpawns) {
+                    clearInterval(intervalId);
+                }
+            }, spawnInterval);
+        }
+    }
+
+    // Hook start
+    async function startHandler() {
+        startButton.disabled = true;
+        startButton.classList.add('active');
+        await runLoading();
+        await bloomSequence();
+    }
+
+    // keyboard accessibility
+    function handleKey(e) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault();
+            if (!startButton.disabled) startHandler();
+        }
+    }
+
+    // init
+    function init() {
+        enableWhenReady();
+        startButton.addEventListener('click', startHandler);
+        startButton.addEventListener('keydown', handleKey);
+        // Make overlay clickable area dismissable by clicking the card (if the designer wants that)
+        // but keep primary action on the button. We'll ignore outside clicks to avoid accidental dismiss.
+        // small enhancement: allow re-trigger on double click after done (optional)
+    }
+
+    // Start
+    document.addEventListener('DOMContentLoaded', init);
+})();
